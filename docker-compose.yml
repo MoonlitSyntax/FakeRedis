@@ -1,0 +1,46 @@
+version: '3.8'
+services:
+  redis-master:
+    image: redis:5.0.4
+    container_name: redis-master
+    ports:
+      - "6379:6379"
+    networks:
+      redisnet:
+        ipv4_address: 172.28.0.2
+    volumes:
+      - ./shared:/data/shared
+
+  redis-slave:
+    image: redis:5.0.4
+    container_name: redis-slave
+    ports:
+      - "6380:6379"
+    networks:
+      redisnet:
+        ipv4_address: 172.28.0.3
+    volumes:
+      - ./shared:/data/shared
+    depends_on:
+      - redis-master
+
+  tcpdump:
+    image: nicolaka/netshoot
+    container_name: redis-tcpdump
+    command: tcpdump -i any -w /data/shared/redis_traffic.pcap host 172.28.0.2 and host 172.28.0.3
+    network_mode: "host"
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ./shared:/data/shared
+    depends_on:
+      - redis-master
+      - redis-slave
+
+networks:
+  redisnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
